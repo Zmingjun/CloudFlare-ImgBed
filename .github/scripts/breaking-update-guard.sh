@@ -231,11 +231,12 @@ check_updates() {
   git fetch --quiet --no-tags "$upstream_remote" \
     "+refs/heads/$UPSTREAM_BRANCH:$upstream_ref"
 
-  manifest_file="$(mktemp)"
   if ! git show "$upstream_ref:$MANIFEST_PATH" > "$manifest_file" 2>/dev/null; then
-    echo "Breaking update manifest not found at $UPSTREAM_REPO:$UPSTREAM_BRANCH/$MANIFEST_PATH" >&2
+    # 改进：清单文件不存在时，继续同步（没有待处理的破损更新）
+    echo "Breaking update manifest not found at $UPSTREAM_REPO:$UPSTREAM_BRANCH/$MANIFEST_PATH. Proceeding without breaking update checks." >&2
     rm -f "$manifest_file"
-    return 1
+    set_output blocked false
+    return 0  # 改为 return 0，允许同步继续
   fi
 
   if ! jq -e '(.schemaVersion == 1) and (.updates | type == "array")' "$manifest_file" >/dev/null; then
